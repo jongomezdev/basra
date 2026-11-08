@@ -9,10 +9,10 @@ signal hover_changed(view: CardView, hovering: bool)
 const CARD_SIZE := Vector2(100, 140)
 const CORNER := 9
 const TILT_SHADER := preload("res://shaders/card_tilt.gdshader")
-const FONT := preload("res://assets/fonts/pixel_font.tres")
 
-## The font's pixels only land on the screen grid at multiples of 11.
-const RANK_FONT_SIZE := 22
+## Size of one pixel of the rank letters, in the corners and on face cards.
+const CORNER_PIXEL := 3.0
+const FACE_PIXEL := 6.0
 
 const HOVER_SCALE := 1.1
 const HOVER_TILT := 0.0013
@@ -170,29 +170,22 @@ func _draw_face() -> void:
 	if card.rank == Card.ACE:
 		_draw_suit(center, 46.0, ink)
 	elif card.is_number():
-		var area := Rect2(Vector2(38, 24), Vector2(24, 92))
+		var area := Rect2(Vector2(40, 24), Vector2(21, 92))
 		for pip: Vector2 in PIPS[card.rank]:
 			_draw_suit(area.position + area.size * pip, 16.0, ink)
 	else:
 		var frame := Rect2(Vector2(25, 25), CARD_SIZE - Vector2(50, 50))
 		draw_rect(frame, ink.lerp(FACE_COLOR, 0.65), false, 1.5, true)
-		_draw_centered_text(card.rank_text(), center + Vector2(0, 2), RANK_FONT_SIZE * 2, ink)
-		_draw_suit(center + Vector2(0, 30), 14.0, ink)
+		var letter := PixelGlyphs.text_size(card.rank_text(), FACE_PIXEL)
+		PixelGlyphs.draw_text(self, card.rank_text(), (center - letter / 2 - Vector2(0, 7)).round(), FACE_PIXEL, ink)
+		_draw_suit(center + Vector2(0, 29), 14.0, ink)
 
 
 func _draw_corner(ink: Color) -> void:
 	var text := card.rank_text()
-	var width := FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, RANK_FONT_SIZE).x
-	var left := roundf(maxf(15 - width / 2, 5))
-	draw_string(FONT, Vector2(left, 24), text, HORIZONTAL_ALIGNMENT_LEFT, -1, RANK_FONT_SIZE, ink)
-	_draw_suit(Vector2(15, 35), 12.0, ink)
-
-
-func _draw_centered_text(text: String, center: Vector2, font_size: int, ink: Color) -> void:
-	var text_size := FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
-	var baseline := center.y + FONT.get_ascent(font_size) - text_size.y / 2
-	draw_string(FONT, Vector2(center.x - text_size.x / 2, baseline), text,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, ink)
+	var width := PixelGlyphs.text_size(text, CORNER_PIXEL).x
+	PixelGlyphs.draw_text(self, text, Vector2(roundf(maxf(16 - width / 2, 4)), 7), CORNER_PIXEL, ink)
+	_draw_suit(Vector2(16, 37), 12.0, ink)
 
 
 ## A tile of eight-pointed stars, the mosaic motif of the card backs.
