@@ -46,6 +46,9 @@ const FELT_BLEND_TIME := 1.6
 
 var game: BasraGame
 var busy := true
+## Where achievements, stats and the chosen card back are saved. Test
+## harnesses point this elsewhere before adding the scene to the tree.
+var progress_path := "user://progress.cfg"
 
 ## Card -> CardView for every card currently in a hand or on the table.
 var _views := {}
@@ -67,6 +70,8 @@ var _restart_pending := false
 var _pause_menu: PauseMenu
 var _felt_index := 0
 var _felt_tween: Tween
+var _tracker: AchievementTracker
+var _toast: AchievementToast
 
 @onready var _board: Control = %Board
 @onready var _felt_material: ShaderMaterial = ($Felt as ColorRect).material
@@ -98,9 +103,17 @@ func _ready() -> void:
 		_pile_views.append(_make_static_back())
 	_board.resized.connect(_on_board_resized)
 	_overlay_button.pressed.connect(_on_overlay_button_pressed)
+	_tracker = AchievementTracker.new()
+	_tracker.load_from(progress_path)
+	CardView.back_design = _tracker.card_back
+	_toast = AchievementToast.new()
+	add_child(_toast)
+	_toast.shown.connect(_on_toast_shown)
 	_pause_menu = PauseMenu.new()
+	_pause_menu.tracker = _tracker
 	add_child(_pause_menu)
 	_pause_menu.new_match_confirmed.connect(_request_new_match)
+	_pause_menu.card_back_chosen.connect(_on_card_back_chosen)
 	_menu_button.pressed.connect(_pause_menu.open)
 	add_child(RotatePrompt.new())
 	_start_match()
@@ -124,6 +137,7 @@ func _start_match() -> void:
 	Engine.time_scale = 1.0
 	game = BasraGame.new()
 	game.start_match(2, randi())
+	_tracker.on_match_start()
 	_set_felt(0, false)
 	_begin_round()
 
@@ -138,6 +152,7 @@ func _begin_round() -> void:
 		view.queue_free()
 	_reveal_views.clear()
 	_shown_scores = game.scores.duplicate()
+	_tracker.on_round_start()
 	if game.round_number > 1:
 		_set_felt(_random_other_palette(), true)
 	_refresh_hud()
@@ -184,6 +199,7 @@ func _play(player: int, hand_index: int) -> void:
 	_set_capture_preview([])
 
 	var result := game.play_card(player, hand_index)
+	_report(_tracker.on_play(result))
 	await _animate_play(result)
 	_refresh_hud()
 	if result.dealt:
@@ -192,6 +208,9 @@ func _play(player: int, hand_index: int) -> void:
 		await _collect_leftovers(result)
 		_refresh_hud()
 		await _reveal_scores()
+		_report(_tracker.on_round_end(game))
+		if game.phase == BasraGame.Phase.MATCH_OVER:
+			_report(_tracker.on_match_end(game))
 		_show_round_summary()
 		return
 	busy = false
@@ -460,10 +479,35 @@ func _show_banner(text: String) -> void:
 	tween.tween_callback(_banner.hide)
 
 
+# --- Achievements -------------------------------------------------------------
+
+## Saves progress and announces anything just unlocked.
+func _report(earned: Array[String]) -> void:
+	_tracker.save_to(progress_path)
+	for id in earned:
+		var reward := ""
+		var back := AchievementTracker.card_back_for(id)
+		if back >= 0:
+			reward = "New card back: %s" % AchievementTracker.CARD_BACKS[back].name
+		_toast.announce(AchievementTracker.achievement(id).name, reward)
+
+
+func _on_toast_shown() -> void:
+	for i in 3:
+		get_tree().create_timer(i * 0.08, false).timeout.connect(_sfx.play.bind("tick", 1.2 + i * 0.2))
+
+
+func _on_card_back_chosen(index: int) -> void:
+	CardView.back_design = index
+	_tracker.save_to(progress_path)
+	get_tree().call_group("card_views", "queue_redraw")
+
+
 # --- Felt ---------------------------------------------------------------------
 
 func _set_felt(index: int, blend: bool) -> void:
 	_felt_index = index
+	_report(_tracker.on_felt_seen(index, FELT_PALETTES.size()))
 	if _felt_tween:
 		_felt_tween.kill()
 	var colors: Array = FELT_PALETTES[index].colors

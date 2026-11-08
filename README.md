@@ -44,8 +44,16 @@ The first to 101 points at the end of a round wins.
 - **Hover** over a card in your hand to see what it would capture.
 - **Click** a card to play it.
 - **Esc** or the **Menu** button opens the pause menu, with the rules, a scoring
-  cheat sheet, a sound toggle and a new game.
+  cheat sheet, achievements, card backs, a sound toggle and a new game.
 - On a phone, play in landscape.
+
+### Achievements
+
+21 achievements reward things like your first Basra, Basras on back-to-back
+turns, collecting all four aces in a round, or a comeback from 50 points down.
+Some are secret. Earning certain ones unlocks new card-back designs, which you
+can switch between from the pause menu. Progress is saved on your device (per
+browser on the web).
 
 ## Running it locally
 

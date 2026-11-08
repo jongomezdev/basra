@@ -23,8 +23,20 @@ const FACE_COLOR := Color("f7f0df")
 const FACE_EDGE := Color("3a2a20")
 const INK_BLACK := Color("23201c")
 const INK_RED := Color("b3262e")
-const BACK_COLOR := Color("8e2a2e")
 const BACK_EDGE := Color("3a2a20")
+
+## Card back designs, in AchievementTracker.CARD_BACKS order.
+const BACK_STYLES := [
+	{"pattern": "stars", "fill": Color("8e2a2e"), "ink": Color("e0bb72")},
+	{"pattern": "lattice", "fill": Color("74202b"), "ink": Color("d4ad66")},
+	{"pattern": "cedar", "fill": Color("1f4a3a"), "ink": Color("efe3c0")},
+	{"pattern": "stars", "fill": Color("1b2440"), "ink": Color("c9d3e6")},
+	{"pattern": "tiles", "fill": Color("1d5c63"), "ink": Color("efe3c0")},
+	{"pattern": "stars", "fill": Color("d9b46a"), "ink": Color("8e2a2e")},
+]
+
+## The back every card shows, chosen in the pause menu.
+static var back_design := 0
 const BRASS := Color("e0bb72")
 
 ## Pip positions as fractions of the pip area, for ranks 2-10.
@@ -49,6 +61,8 @@ var card: Card
 var idle := true
 ## This card's resting angle on the table, so the layout looks hand-placed.
 var table_angle := 0.0
+## Shows this back instead of back_design (for previews). -1 means none.
+var back_override := -1
 var face_up := false:
 	set(value):
 		face_up = value
@@ -89,6 +103,7 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	add_to_group("card_views")
 	mouse_entered.connect(func() -> void: hover_changed.emit(self, true))
 	mouse_exited.connect(func() -> void: hover_changed.emit(self, false))
 
@@ -143,8 +158,9 @@ func _draw() -> void:
 		_draw_panel(rect, FACE_COLOR, FACE_EDGE, 2)
 		_draw_face()
 	else:
-		_draw_panel(rect, BACK_COLOR, BACK_EDGE, 2)
-		_draw_back()
+		var style: Dictionary = BACK_STYLES[back_override if back_override >= 0 else back_design]
+		_draw_panel(rect, style.fill, BACK_EDGE, 2)
+		_draw_back(style)
 	if highlighted:
 		_draw_panel(rect.grow(2), Color(0, 0, 0, 0), BRASS, 4)
 
@@ -188,20 +204,73 @@ func _draw_corner(ink: Color) -> void:
 	_draw_suit(Vector2(16, 37), 12.0, ink)
 
 
-## A tile of eight-pointed stars, the mosaic motif of the card backs.
-func _draw_back() -> void:
+func _draw_back(style: Dictionary) -> void:
+	var fill: Color = style.fill
+	var ink: Color = style.ink
 	var inset := Rect2(Vector2(8, 8), CARD_SIZE - Vector2(16, 16))
-	draw_rect(inset, BRASS, false, 2.0)
-	var step := 21.0
+	draw_rect(inset, ink, false, 2.0)
+	match style.pattern:
+		"stars":
+			_draw_star_tiles(inset, fill, ink)
+		"lattice":
+			_draw_lattice(inset, ink)
+		"cedar":
+			_draw_cedar(inset, ink)
+		"tiles":
+			_draw_zellige(inset, fill, ink)
+
+
+## Calls paint for the centre of each cell in an evenly spaced grid.
+func _for_each_cell(inset: Rect2, step: float, paint: Callable) -> void:
 	var columns := int(inset.size.x / step)
 	var rows := int(inset.size.y / step)
 	var margin := (inset.size - Vector2(columns - 1, rows - 1) * step) / 2
 	for row in rows:
 		for column in columns:
-			var center := inset.position + margin + Vector2(column, row) * step
-			draw_colored_polygon(_square(center, 7.0, 0.0), BRASS)
-			draw_colored_polygon(_square(center, 7.0, PI / 4), BRASS)
-			draw_colored_polygon(_square(center, 3.0, PI / 4), BACK_COLOR)
+			paint.call(inset.position + margin + Vector2(column, row) * step, row, column)
+
+
+## Eight-pointed stars, the mosaic motif of the default back.
+func _draw_star_tiles(inset: Rect2, fill: Color, ink: Color) -> void:
+	_for_each_cell(inset, 21.0, func(center: Vector2, _row: int, _column: int) -> void:
+		draw_colored_polygon(_square(center, 7.0, 0.0), ink)
+		draw_colored_polygon(_square(center, 7.0, PI / 4), ink)
+		draw_colored_polygon(_square(center, 3.0, PI / 4), fill))
+
+
+## Alternating large and small diamonds.
+func _draw_lattice(inset: Rect2, ink: Color) -> void:
+	_for_each_cell(inset, 14.0, func(center: Vector2, row: int, column: int) -> void:
+		var radius := 4.5 if (row + column) % 2 == 0 else 2.0
+		draw_colored_polygon(_square(center, radius, PI / 4), ink))
+
+
+## A cedar tree in tiers, with a double frame.
+func _draw_cedar(inset: Rect2, ink: Color) -> void:
+	draw_rect(inset.grow(-6), ink, false, 1.0)
+	var center_x := CARD_SIZE.x / 2
+	var base_y := CARD_SIZE.y / 2 + 34
+	draw_rect(Rect2(Vector2(center_x - 4, base_y - 6), Vector2(8, 16)), ink)
+	var tiers := [[62.0, 22.0], [50.0, 20.0], [36.0, 18.0], [20.0, 16.0]]
+	var y := base_y
+	for tier: Array in tiers:
+		var half: float = tier[0] / 2
+		draw_colored_polygon(PackedVector2Array([
+			Vector2(center_x - half, y), Vector2(center_x + half, y), Vector2(center_x, y - tier[1] * 1.6),
+		]), ink)
+		y -= tier[1]
+
+
+## Square tiles with a diamond and dot, like glazed zellige.
+func _draw_zellige(inset: Rect2, fill: Color, ink: Color) -> void:
+	_for_each_cell(inset, 18.0, func(center: Vector2, row: int, column: int) -> void:
+		if (row + column) % 2 == 0:
+			draw_colored_polygon(_square(center, 8.0, PI / 4), ink)
+			draw_colored_polygon(_square(center, 4.0, PI / 4), fill)
+			draw_circle(center, 1.6, ink)
+		else:
+			draw_rect(Rect2(center - Vector2(1.5, 6), Vector2(3, 12)), ink)
+			draw_rect(Rect2(center - Vector2(6, 1.5), Vector2(12, 3)), ink))
 
 
 func _draw_suit(center: Vector2, height: float, ink: Color) -> void:
