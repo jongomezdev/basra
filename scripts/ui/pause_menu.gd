@@ -14,7 +14,7 @@ const RULES_TEXT := """[color=#f5d78c]Goal[/color]
 Capture cards to score points. The first to reach 101 points at the end of a round wins the match.
 
 [color=#f5d78c]The deal[/color]
-Four cards go face up on the table and each player gets six. When both hands are empty, everyone gets six more (no new table cards) until the deck runs out.
+Four cards go face up on the table and each player gets six. A jack never starts on the table: it goes back into the deck (the first to the bottom, a second to the middle) and is replaced. When both hands are empty, everyone gets six more (no new table cards) until the deck runs out.
 
 [color=#f5d78c]Your turn[/color]
 Play one card from your hand:

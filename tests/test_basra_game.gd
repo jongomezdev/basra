@@ -55,6 +55,64 @@ func test_four_player_deal() -> void:
 	assert_ne(game.team_of(0), game.team_of(1))
 
 
+## A deck whose top (last element) is the given ranks, in deal order, on top
+## of 20 filler cards.
+func _stacked_deck(top_in_deal_order: Array) -> Array[Card]:
+	var deck: Array[Card] = []
+	for i in 20:
+		deck.append(Card.new(S, 2 + i % 8))
+	var top := top_in_deal_order.duplicate()
+	top.reverse()
+	for rank: int in top:
+		deck.append(Card.new(H, rank))
+	return deck
+
+
+func test_a_jack_on_the_opening_table_goes_to_the_bottom() -> void:
+	var game := BasraGame.new()
+	game.deck = _stacked_deck([5, Card.JACK, 9, 3, 4])
+	game.deal_table()
+	assert_eq(game.table.map(func(c: Card) -> int: return c.rank), [5, 9, 3, 4])
+	assert_eq(game.deck[0].rank, Card.JACK)
+	assert_eq(game.deck.size(), 21)
+
+
+func test_a_second_jack_goes_to_the_middle() -> void:
+	var game := BasraGame.new()
+	game.deck = _stacked_deck([Card.JACK, 6, Card.JACK, 8, 1, 10])
+	game.deal_table()
+	assert_eq(game.table.map(func(c: Card) -> int: return c.rank), [6, 8, 1, 10])
+	assert_eq(game.deck[0].rank, Card.JACK, "first jack at the bottom")
+	var jack_spots := []
+	for i in game.deck.size():
+		if game.deck[i].rank == Card.JACK:
+			jack_spots.append(i)
+	assert_eq(jack_spots.size(), 2)
+	# 26 cards: after the jack, 6 and second jack come off the top and the
+	# first jack goes back, 24 remain, so the second goes in at index 12.
+	assert_eq(jack_spots[1], 12)
+
+
+func test_a_replacement_jack_is_also_sent_back() -> void:
+	var game := BasraGame.new()
+	game.deck = _stacked_deck([Card.JACK, Card.JACK, Card.JACK, 2, 3, 4, 5])
+	game.deal_table()
+	assert_eq(game.table.map(func(c: Card) -> int: return c.rank), [2, 3, 4, 5])
+	var jacks := game.deck.filter(func(c: Card) -> bool: return c.rank == Card.JACK)
+	assert_eq(jacks.size(), 3)
+	assert_eq(game.deck.size(), 23)
+
+
+func test_opening_tables_never_show_a_jack() -> void:
+	for seed_value in 300:
+		var game := BasraGame.new()
+		game.start_match(2, seed_value)
+		for card in game.table:
+			assert_ne(card.rank, Card.JACK)
+		var total: int = game.deck.size() + game.table.size() + game.hands[0].size() + game.hands[1].size()
+		assert_eq(total, 52)
+
+
 func test_same_seed_deals_the_same_cards() -> void:
 	var a := BasraGame.new()
 	var b := BasraGame.new()

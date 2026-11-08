@@ -56,8 +56,7 @@ func start_round() -> void:
 	for player in player_count:
 		var hand: Array[Card] = []
 		hands.append(hand)
-	for i in BasraRules.TABLE_DEAL:
-		table.append(deck.pop_back())
+	deal_table()
 	_deal_hands()
 	current_player = (dealer + 1) % player_count
 
@@ -114,6 +113,28 @@ func play_card(player: int, hand_index: int) -> Dictionary:
 			_deal_hands()
 			result.dealt = true
 	return result
+
+
+## Deals the opening table cards from the top of the deck (its last element).
+## A jack never starts on the table: the first goes to the bottom of the deck,
+## the second to the middle, and any more to a random spot in the lower half.
+## Each is replaced by the next card off the top.
+func deal_table() -> void:
+	var jacks_returned := 0
+	while table.size() < BasraRules.TABLE_DEAL:
+		var card: Card = deck.pop_back()
+		if card.rank != Card.JACK:
+			table.append(card)
+			continue
+		jacks_returned += 1
+		var half: int = deck.size() / 2
+		match jacks_returned:
+			1:
+				deck.insert(0, card)
+			2:
+				deck.insert(half, card)
+			_:
+				deck.insert(_rng.randi_range(0, half), card)
 
 
 func _deal_hands() -> void:
