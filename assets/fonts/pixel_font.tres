@@ -7,3 +7,6 @@ base_font = ExtResource("1_font")
 variation_opentype = {
 2003265652: 400
 }
+opentype_features = {
+1818847073: 0
+}

@@ -20,6 +20,8 @@ const DEAL_STAGGER := 0.05
 const CAPTURE_PAUSE := 0.5
 const OPPONENT_THINK_TIME := 0.8
 const SHAKE_DECAY := 7.0
+## How much faster the old match plays out while a new one is waiting to start.
+const RESTART_TIME_SCALE := 8.0
 
 const REVEAL_CARD_STRIDE := 106.0
 const REVEAL_FAST_FACTOR := 0.1
@@ -45,6 +47,10 @@ var _shown_scores := [0, 0]
 var _shake := 0.0
 var _revealing := false
 var _reveal_fast := false
+## Set when a new match was asked for mid-animation; it starts at the next
+## safe point (a turn change or the end of a round).
+var _restart_pending := false
+var _pause_menu: PauseMenu
 
 @onready var _board: Control = %Board
 @onready var _your_score: Label = %YourScore
@@ -61,6 +67,7 @@ var _reveal_fast := false
 @onready var _overlay_title: Label = %OverlayTitle
 @onready var _overlay_grid: GridContainer = %OverlayGrid
 @onready var _overlay_button: Button = %OverlayButton
+@onready var _menu_button: Button = %MenuButton
 
 
 func _ready() -> void:
@@ -74,6 +81,10 @@ func _ready() -> void:
 		_pile_views.append(_make_static_back())
 	_board.resized.connect(_on_board_resized)
 	_overlay_button.pressed.connect(_on_overlay_button_pressed)
+	_pause_menu = PauseMenu.new()
+	add_child(_pause_menu)
+	_pause_menu.new_match_confirmed.connect(_request_new_match)
+	_menu_button.pressed.connect(_pause_menu.open)
 	_start_match()
 
 
@@ -91,6 +102,8 @@ func _input(event: InputEvent) -> void:
 
 
 func _start_match() -> void:
+	_restart_pending = false
+	Engine.time_scale = 1.0
 	game = BasraGame.new()
 	game.start_match(2, randi())
 	_begin_round()
@@ -113,7 +126,21 @@ func _begin_round() -> void:
 	_next_turn()
 
 
+## Starts a new match now if nothing is animating, otherwise fast-forwards to
+## the next safe point so no animation is left touching the old match.
+func _request_new_match() -> void:
+	if not busy or _overlay.visible:
+		_start_match()
+		return
+	_restart_pending = true
+	_status.text = "Starting a new match…"
+	Engine.time_scale = RESTART_TIME_SCALE
+
+
 func _next_turn() -> void:
+	if _restart_pending:
+		_start_match()
+		return
 	if game.phase != BasraGame.Phase.PLAYING:
 		return
 	if game.current_player == HUMAN:
@@ -124,7 +151,7 @@ func _next_turn() -> void:
 
 	_status.text = "Opponent is playing…"
 	busy = true
-	await get_tree().create_timer(OPPONENT_THINK_TIME).timeout
+	await get_tree().create_timer(OPPONENT_THINK_TIME, false).timeout
 	_play(OPPONENT, BasraAI.choose_card(game.hands[OPPONENT], game.table))
 
 
@@ -342,7 +369,7 @@ func _celebrate_basra(at: Vector2) -> void:
 	_show_banner("Basra!  +%d" % BasraRules.BASRA_POINTS)
 	_sfx.play("thud", 1.0, -4.0)
 	for i in 3:
-		get_tree().create_timer(i * 0.09).timeout.connect(_sfx.play.bind("tick", 1.0 + i * 0.25))
+		get_tree().create_timer(i * 0.09, false).timeout.connect(_sfx.play.bind("tick", 1.0 + i * 0.25))
 
 
 func _burst(at: Vector2) -> void:
@@ -568,6 +595,9 @@ func _refresh_hud() -> void:
 
 
 func _show_round_summary() -> void:
+	if _restart_pending:
+		_start_match()
+		return
 	for child in _overlay_grid.get_children():
 		_overlay_grid.remove_child(child)
 		child.queue_free()
@@ -645,4 +675,4 @@ func _on_overlay_button_pressed() -> void:
 
 
 func _wait(seconds: float) -> void:
-	await get_tree().create_timer(seconds).timeout
+	await get_tree().create_timer(seconds, false).timeout
