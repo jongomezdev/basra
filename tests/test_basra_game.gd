@@ -92,6 +92,19 @@ func test_basra_is_counted() -> void:
 	assert_eq(game.basras[0], 1)
 
 
+func test_clearing_by_adding_up_scores_a_basra() -> void:
+	var game := _position([[H, 8], [H, 13]], [[S, 12]], [[C, 6], [S, 2]])
+	assert_true(game.play_card(0, 0).basra)
+	assert_eq(game.basras[0], 1)
+
+
+func test_ai_avoids_leaving_a_clearable_table() -> void:
+	# Laying the 2 next to the 6 lets an 8 clear both; the king leaves a
+	# table nothing can clear.
+	var hand := _cards([[H, 2], [H, 13]])
+	assert_eq(BasraAI.choose_card(hand, _cards([[C, 6]])), 1)
+
+
 func test_sweep_is_not_a_basra() -> void:
 	var game := _position([[H, 11], [H, 13]], [[S, 12]], [[C, 5]])
 	var result := game.play_card(0, 0)

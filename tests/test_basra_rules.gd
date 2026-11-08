@@ -82,10 +82,11 @@ func test_jack_sweeps_everything() -> void:
 	assert_eq(BasraRules.capture_for(Card.new(D, Card.JACK), table).size(), 3)
 
 
-func test_seven_of_diamonds_sweeps_but_other_sevens_do_not() -> void:
-	var table := _table([[C, 9], [H, 13]])
-	assert_eq(BasraRules.capture_for(Card.new(D, 7), table).size(), 2)
-	assert_true(BasraRules.capture_for(Card.new(C, 7), table).is_empty())
+func test_seven_of_diamonds_is_an_ordinary_seven() -> void:
+	assert_false(BasraRules.is_sweeper(Card.new(D, 7)))
+	assert_true(BasraRules.capture_for(Card.new(D, 7), _table([[C, 9], [H, 13]])).is_empty())
+	assert_eq(_ranks(BasraRules.capture_for(Card.new(D, 7), _table([[C, 7], [H, 4], [S, 3]]))), [3, 4, 7])
+	assert_true(BasraRules.is_basra(Card.new(D, 7), _table([[C, 7]])))
 
 
 func test_sweeper_on_empty_table_captures_nothing() -> void:
@@ -97,15 +98,43 @@ func test_basra_is_matching_a_lone_card() -> void:
 	assert_true(BasraRules.is_basra(Card.new(D, 5), _table([[C, 5]])))
 
 
-func test_jack_and_seven_of_diamonds_never_score_basra() -> void:
+func test_clearing_the_table_by_adding_up_is_a_basra() -> void:
+	assert_true(BasraRules.is_basra(Card.new(D, 8), _table([[C, 2], [H, 6]])))
+	assert_true(BasraRules.is_basra(Card.new(D, 10), _table([[C, 7], [H, 3]])))
+
+
+func test_clearing_with_matches_and_sums_together_is_a_basra() -> void:
+	assert_true(BasraRules.is_basra(Card.new(D, 5), _table([[C, 5], [H, 5]])))
+	assert_true(BasraRules.is_basra(Card.new(D, 8), _table([[C, 8], [H, 2], [S, 6]])))
+
+
+func test_a_sum_that_does_not_add_up_takes_nothing() -> void:
+	var table := _table([[C, 10], [H, 3]])
+	assert_true(BasraRules.capture_for(Card.new(H, 7), table).is_empty())
+	assert_false(BasraRules.is_basra(Card.new(H, 7), table))
+
+
+func test_jack_never_scores_basra() -> void:
 	assert_false(BasraRules.is_basra(Card.new(D, Card.JACK), _table([[C, Card.JACK]])))
-	assert_false(BasraRules.is_basra(Card.new(D, 7), _table([[C, 7]])))
-	assert_true(BasraRules.is_basra(Card.new(H, 7), _table([[C, 7]])))
+	assert_false(BasraRules.is_basra(Card.new(D, Card.JACK), _table([[C, 4], [H, 9]])))
 
 
-func test_clearing_several_cards_is_not_a_basra() -> void:
-	assert_false(BasraRules.is_basra(Card.new(D, 8), _table([[C, 2], [H, 6]])))
-	assert_false(BasraRules.is_basra(Card.new(D, 5), _table([[C, 5], [H, 5]])))
+func test_leaving_any_card_behind_is_not_a_basra() -> void:
+	assert_false(BasraRules.is_basra(Card.new(D, 8), _table([[C, 2], [H, 6], [S, 4]])))
+	assert_false(BasraRules.is_basra(Card.new(D, 5), _table([[C, 5], [H, 13]])))
+
+
+func test_playing_onto_an_empty_table_is_not_a_basra() -> void:
+	var empty: Array[Card] = []
+	assert_false(BasraRules.is_basra(Card.new(D, 5), empty))
+
+
+func test_can_be_cleared() -> void:
+	assert_true(BasraRules.can_be_cleared(_table([[C, 2], [H, 6]])))
+	assert_true(BasraRules.can_be_cleared(_table([[C, 12]])))
+	assert_false(BasraRules.can_be_cleared(_table([[C, 9], [H, 6]])))
+	assert_false(BasraRules.can_be_cleared(_table([[C, 12], [H, 13]])))
+	assert_false(BasraRules.can_be_cleared(_table([[C, 11]])), "a lone jack can only be swept")
 
 
 func test_card_points() -> void:

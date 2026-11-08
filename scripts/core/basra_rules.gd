@@ -16,9 +16,9 @@ const MAJORITY_POINTS := 3
 const BASRA_POINTS := 10
 
 
-## Jacks and the 7 of diamonds clear the whole table.
+## Jacks clear the whole table. Every other card captures normally.
 static func is_sweeper(card: Card) -> bool:
-	return card.rank == Card.JACK or (card.rank == 7 and card.suit == Card.Suit.DIAMONDS)
+	return card.rank == Card.JACK
 
 
 ## Every table card this card takes. Capturing is mandatory, so this is also
@@ -51,9 +51,21 @@ static func capture_for(card: Card, table: Array[Card]) -> Array[Card]:
 	return captured
 
 
-## A Basra is taking a single lone table card by matching it, without a sweeper.
+## A Basra is clearing the whole table by matching or adding up. Sweeping
+## with a jack never counts.
 static func is_basra(card: Card, table: Array[Card]) -> bool:
-	return table.size() == 1 and not is_sweeper(card) and table[0].rank == card.rank
+	if is_sweeper(card) or table.is_empty():
+		return false
+	return capture_for(card, table).size() == table.size()
+
+
+## Whether some card could take everything on this table as a Basra. The AI
+## uses it to judge what it leaves behind for the next player.
+static func can_be_cleared(table: Array[Card]) -> bool:
+	for rank in range(Card.ACE, Card.KING + 1):
+		if rank != Card.JACK and is_basra(Card.new(Card.Suit.CLUBS, rank), table):
+			return true
+	return false
 
 
 ## Points a card is worth in a capture pile, before majority and Basra bonuses.

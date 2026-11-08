@@ -21,13 +21,13 @@ Play one card from your hand:
 - Match: it takes every table card of the same rank.
 - Add up: a number card also takes groups of table cards that add up to its value. Aces count as 1, so an 8 can take a 2 and a 6.
 - Queens and kings only take matching queens and kings.
-- Jacks and the 7 of diamonds sweep the whole table.
+- Jacks sweep the whole table.
 - If it takes nothing, it stays on the table.
 
 A card always takes everything it can. Hover over a card to see what it will take.
 
 [color=#f5d78c]Basra[/color]
-Take the only card on the table by matching it, and you score a Basra worth 10 points. Sweeping with a jack or the 7 of diamonds never counts as a Basra.
+Clear the whole table in one play, by matching or adding up, and you score a Basra worth 10 points. A 10 can take a 7 and a 3 for a Basra, but a 7 can't take a 10 and a 3. Sweeping with a jack never counts as a Basra.
 
 [color=#f5d78c]End of a round[/color]
 Whoever captured last takes the cards left on the table. Then the round is scored (see Scoring). If both sides pass 101, the higher score wins. An exact tie plays another round."""

@@ -4,7 +4,8 @@ extends RefCounted
 ## Greedy opponent: scores each card in hand by what it takes now and what it
 ## leaves on the table for the next player.
 
-const LONE_CARD_RISK := 3.0
+## Penalty for leaving a table the next player could clear for a Basra.
+const BASRA_RISK := 3.0
 const SWEEPER_COST := 2.0
 const EMPTY_TABLE_BONUS := 1.0
 const CARD_VALUE := 0.25
@@ -34,11 +35,14 @@ static func _evaluate(card: Card, table: Array[Card]) -> float:
 	if BasraRules.is_sweeper(card):
 		value -= SWEEPER_COST
 
-	var left_behind := table.size() - captured.size()
-	if left_behind == 0:
+	var left_behind: Array[Card] = []
+	for table_card in table:
+		if table_card not in captured:
+			left_behind.append(table_card)
+	if left_behind.is_empty():
 		value += EMPTY_TABLE_BONUS
-	elif left_behind == 1:
-		value -= LONE_CARD_RISK
+	elif BasraRules.can_be_cleared(left_behind):
+		value -= BASRA_RISK
 	return value
 
 
@@ -50,6 +54,8 @@ static func _evaluate_discard(card: Card, table: Array[Card]) -> float:
 		value -= SWEEPER_COST * 3.0
 	if not card.is_number():
 		value += 0.5
-	if table.is_empty():
-		value -= LONE_CARD_RISK
+	var after: Array[Card] = table.duplicate()
+	after.append(card)
+	if BasraRules.can_be_cleared(after):
+		value -= BASRA_RISK
 	return value
