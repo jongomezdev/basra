@@ -30,6 +30,20 @@ const BRASS := Color("f5d78c")
 const RED := Color("ee6b61")
 const BURST_COLORS := [Color("f5d78c"), Color("ee6b61"), Color("f7f0df")]
 
+## Felt colours (dark, mid, light) for the marbled table. Every match starts on
+## Cedar; each new round blends to a different one at random.
+const FELT_PALETTES := [
+	{"name": "Cedar", "colors": [Color("13332a"), Color("1c493b"), Color("295e4d")]},
+	{"name": "Mediterranean", "colors": [Color("10283f"), Color("173a5a"), Color("22507a")]},
+	{"name": "Twilight", "colors": [Color("231a38"), Color("33264f"), Color("463569")]},
+	{"name": "Olive", "colors": [Color("26290f"), Color("383c17"), Color("4d5222")]},
+	{"name": "Coffee", "colors": [Color("2b1c13"), Color("3d291c"), Color("533a28")]},
+	{"name": "Slate", "colors": [Color("1c2329"), Color("29333b"), Color("3a4651")]},
+	{"name": "Wine", "colors": [Color("2c1220"), Color("3f1a2e"), Color("57263f")]},
+]
+const FELT_UNIFORMS := ["dark_color", "mid_color", "light_color"]
+const FELT_BLEND_TIME := 1.6
+
 var game: BasraGame
 var busy := true
 
@@ -51,8 +65,11 @@ var _reveal_fast := false
 ## safe point (a turn change or the end of a round).
 var _restart_pending := false
 var _pause_menu: PauseMenu
+var _felt_index := 0
+var _felt_tween: Tween
 
 @onready var _board: Control = %Board
+@onready var _felt_material: ShaderMaterial = ($Felt as ColorRect).material
 @onready var _your_score: Label = %YourScore
 @onready var _opponent_score: Label = %OpponentScore
 @onready var _round_label: Label = %RoundLabel
@@ -106,6 +123,7 @@ func _start_match() -> void:
 	Engine.time_scale = 1.0
 	game = BasraGame.new()
 	game.start_match(2, randi())
+	_set_felt(0, false)
 	_begin_round()
 
 
@@ -119,6 +137,8 @@ func _begin_round() -> void:
 		view.queue_free()
 	_reveal_views.clear()
 	_shown_scores = game.scores.duplicate()
+	if game.round_number > 1:
+		_set_felt(_random_other_palette(), true)
 	_refresh_hud()
 	_place_static_views()
 	await _deal(true)
@@ -437,6 +457,29 @@ func _show_banner(text: String) -> void:
 	tween.tween_interval(0.7)
 	tween.tween_property(_banner, "modulate:a", 0.0, 0.25)
 	tween.tween_callback(_banner.hide)
+
+
+# --- Felt ---------------------------------------------------------------------
+
+func _set_felt(index: int, blend: bool) -> void:
+	_felt_index = index
+	if _felt_tween:
+		_felt_tween.kill()
+	var colors: Array = FELT_PALETTES[index].colors
+	if not blend:
+		for i in FELT_UNIFORMS.size():
+			_felt_material.set_shader_parameter(FELT_UNIFORMS[i], colors[i])
+		return
+	_felt_tween = create_tween().set_parallel().set_trans(Tween.TRANS_SINE)
+	for i in FELT_UNIFORMS.size():
+		_felt_tween.tween_property(
+			_felt_material, "shader_parameter/" + FELT_UNIFORMS[i], colors[i], FELT_BLEND_TIME
+		)
+
+
+func _random_other_palette() -> int:
+	var index := randi_range(0, FELT_PALETTES.size() - 2)
+	return index + 1 if index >= _felt_index else index
 
 
 # --- Layout -----------------------------------------------------------------
