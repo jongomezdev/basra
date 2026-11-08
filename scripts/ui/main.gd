@@ -102,6 +102,7 @@ func _ready() -> void:
 	add_child(_pause_menu)
 	_pause_menu.new_match_confirmed.connect(_request_new_match)
 	_menu_button.pressed.connect(_pause_menu.open)
+	add_child(RotatePrompt.new())
 	_start_match()
 
 
